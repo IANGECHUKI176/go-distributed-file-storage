@@ -23,7 +23,7 @@ func NewTCPpeer(conn net.Conn, outbound bool) *TCPPeer{
 }
 
 type TCPTransportOpts struct{
-	listenAddress string
+	ListenAddr string
 
 	HandeshakeFunc HandeshakeFunc
 	Decoder Decoder
@@ -45,7 +45,8 @@ func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 
 func (t *TCPTransport) ListenAndAccept() error{
 	var err error
-	t.listener,err = net.Listen("tcp", t.listenAddress)
+	t.listener,err = net.Listen("tcp", t.ListenAddr)
+	fmt.Printf("listening on port%s\n",t.ListenAddr)
 	if err != nil {
 		return err
 	}
@@ -59,26 +60,31 @@ func (t *TCPTransport) startAcceptLoop(){
 		if err != nil {
 			fmt.Printf("tcp  accepr error: %s\n",err)
 		}
+		fmt.Printf("new incoming connection: %s\n",conn.RemoteAddr())
 		go t.handleConn(conn)
 	}
 }
-type Temp struct {}
+// type Temp struct {}
 func (t *TCPTransport) handleConn(conn net.Conn){
 	peer := NewTCPpeer(conn,true)
 
 	
 	if err := t.HandeshakeFunc(peer); err != nil {
 		conn.Close()
+		fmt.Printf("TCP handshake error: %s\n",err)
 		return
 	}
 	//read loop
-	msg := &Temp{}
+	rpc := &RPC{}
+	
 	for {
-		if err := t.Decoder.Decode(conn,msg); err != nil{
+		if err := t.Decoder.Decode(conn,rpc); err != nil{
 			fmt.Printf("tcp read error: %s\n",err)
 			continue
 		}
-
+		rpc.From = conn.RemoteAddr()
+		fmt.Printf("RPC received: %+v\n",rpc)
+	
 	}
 
 }
